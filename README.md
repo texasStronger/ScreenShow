@@ -5,21 +5,23 @@ SlideShow displays a slide show of images (photos, pictures, jpg, gif, etc).
 Start the program with a folder to images. All sub-folders will be searched. e.g. : python SlideShow.py  /path/2/config/
 The /path/ should have a config.txt file to change program operations. Otherwise hard coded
 defaults are used. Format of config.txt:
-
-[screensaver]
-delay=15
-shuffle=True
-timeon=0645
-timeoff=2300
-scaleup=True
-scaledown=True
-showfilenames=True
-reload=false
-timeon=0630
-timeoff=2400
-includedfolders=  /mmedia/pics
-excludedfolders=/mmedia/pics/1996
-
+<pre>
+<code>
+  [screensaver]
+  delay=15
+  shuffle=True
+  timeon=0645
+  timeoff=2300
+  scaleup=True
+  scaledown=True
+  showfilenames=True
+  reload=false
+  timeon=0630
+  timeoff=2400
+  includedfolders=  /mmedia/pics
+  excludedfolders=/mmedia/pics/1996
+</code>
+</pre>
 
 
 The meaning of parameters in config.txt:
