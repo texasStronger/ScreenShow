@@ -1,4 +1,4 @@
-# ScreenShow
+# SlideShow
 Python Screen Show to display images with options
 
 SlideShow displays a slide show of images (photos, pictures, jpg, gif, etc).
