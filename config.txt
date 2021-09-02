@@ -1,0 +1,12 @@
+[slideshow]
+delay=3
+shuffle=False
+reload=false
+timeon=0630
+timeoff=2400
+scaleup=True
+scaledown=True
+showfilenames=True
+includedfolders=  /mmedia/pics
+excludedfolders=/mmedia/pics/1996 /mmedia/pics/2001/2001-september11 /mmedia/pics/2021/2021-05tommyVaughan /mmedia/pics/2017/2017-07kathy /mmedia/pics/1998
+#excludedfolders = /mmedia/pics/2018/2018-01corpusChristi /mmedia/pics/2018/2018-01georgetown
