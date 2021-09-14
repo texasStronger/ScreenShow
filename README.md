@@ -53,4 +53,5 @@ Usage: python config.txt
     the screen.
     
     Files needed: SlideShow.py PopupSettings.py config.txt
-
+    Test on python3.9 on Windows 10 and Raspberry Pi Buster
+    Packages needed: tkinter plus standard python imports
