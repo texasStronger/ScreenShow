@@ -1,180 +1,257 @@
-#!/usr/bin/env python3
+
 import os
 import tkinter
 import datetime
 import random
 import configparser
 from itertools import cycle
+import tkinter as tk
 from PIL import Image, ImageTk
+from PopupSettings import PopupSettings
+import time
 
-
-
-# defaults
-PATH = './'
-DELAY_TIME = 10000 # 10 seconds
-SHUFFLE = False
-
-class Slideshow(tkinter.Tk):
+class Slideshow():
     '''
-SlideShow displays a slide show of images (photos, pictures, jpg, gif, etc).
-Start the program with a folder to images. All sub-folders will be searched. e.g. : python SlideShow.py  /path/2/config/
-The /path/ should have a config.txt file to change program operations. Otherwise hard coded
-defaults are used. Format of config.txt:
+    Usage: python config.txt
+    
+    Info:
+    SlideShow displays a slide show of photos (jpg, gif, png, jpeg).
+    Start the program with a config.txt. All specified sub-folders will be searched. 
+    The /path/ should have a config.txt file to change program operations. Otherwise hard coded
+    defaults are used. Format of config.txt:
+    
+    [slideshow]
+    #delay seconds from 1 to ...
+    delay=30
+    
+    # reload this config file when it is changed: true or false
+    reload=true
+    
+    # scale smaller photos up to screen: true or false
+    scaleup=True
+    
+    # scale larger photos down to screen size: true or false
+    scaledown=True: true or false
+    
+    # begin slide show at: format HH:MM
+    time_begin=06:30
+    
+    # end slide show at: format HH:MM
+    time_end=21:59
+    
+    # show filenames on the screen: true or false
+    showfilenames=true
+    
+    # sort photos by full path name : none, ascending, descending or random
+    sort=random
+    
+    # transition photos with a blend: true or false
+    blend=true
+    
+    # blend speed: 0.0 to 1.0
+    blend_speed=0.10
 
-[screensaver]
-delay=15
-shuffle=True
-timeon=0645
-timeoff=2300
-scaleup=True
-scaledown=True
-showfilenames=True
-reload=false
-timeon=0630
-timeoff=2400
-includedfolders=  /mmedia/pics
-excludedfolders=/mmedia/pics/1996
-
-
-
-The meaning of parameters in config.txt:
-  delay  - a number, indicates how many seconds to wait between images. 
-  shuffle -  True or False, indicates if pictures will be read in order (False) or shuffled (True)
-  timeon - a number, indicates a time when screen saver shows images
-  timeoff - a number, indicates a time when a black screen wil appear instead of images
-  scaleup - True or False, indicates that small pictures will be increased to screen size (True)
-  scaledown - True or False, indicates that large pictures will be decreased to screen size (True)
-  showfilenames - True or False, bottom of screen will show full file name
-  reload - True of False, If the config file changed, indicates if filenames should be reloaded
-  includedfolders = pathnames to where files are found including subfolders
-  excludedfolders = pathnames to folders and their contents to ignore (not subfolders)
-
-SlideShow will monitor config.txt. If the file changes, new setting will be applied including possibly
-re-reading all of the image file names. e.g. I have an older flat screen windows laptop that I am using now for a photo frame. I can sftp new 
-files or drag them as a mounted drive. Then I place a config.txt file in the top folder.
-To exit SlideShow, hit the Escape or q keys.
-Perform left button click to hide the screen and pause.
-Perform right button click to advance to next image immediately.
-Hit spacebar to pause, and again to resume.
-
+    # included photos from these folders and their subfolders
+    includedfolders=  /mmedia/pics
+    
+    # excluded photos from these folders and their subfolders
+    excludedfolders=/mmedia/pics/1996 /mmedia/pics/1998
+    
+    Click on the screen (or mouse) to show a settings popup. Some of the config settings can
+    be changed, but only while running.
+    If config.txt or slideshow.py are changed, the program will reload and restart, respectively.
+    
+    Use the keyboard: ESC or q ends the program.  p pauses the photo. s shows the setting popup.  h hides
+    the screen.
+    
+    Files needed: SlideShow.py PopupSettings.py config.txt
+    
 log:
     '''
-
     print(__doc__)
    
-    def __init__(self, path, delay_time, shuffle):
+    def __init__(self, path):
     #------------------------------------------------------
-        tkinter.Tk.__init__(self)
-        self.delay_time = delay_time # in ms.
+    # initializes variables, UI, etc.
+        #setup screen stuff
+        self.root = tk.Tk()
+        w = self.root.winfo_screenwidth() #get max screen resolution on device
+        h =  self.root.winfo_screenheight()
+        self.root.geometry("%dx%d+%d+%d" % (w,h,0,0)) #set tkinter widget to full screen
+        self.root.configure(bg='black')
+        self.root.attributes('-fullscreen', True)
+        self.root.resizable(False, False)
+        print("Screen width %d height %d "%(w,h))
+
         self.path = path # a folder of pictures and subfolders
-        self.shuffle = shuffle # mix or no mix images
-        self.reload_filenames=False
-        self.config_time = 0 # unchanged config file
-        self.timeon = 700 # 7am
-        self.timeoff = 2200 # 10pm
-        self.image_filenames = False # hold the filenames of images
-        self.scaleup = True # make small images larger
-        self.scaledown = True # make large pictures fit to screen
-        self.hide_screen = False
-        self.space_bar_pause = False
-        self.program_time = os.stat(__file__).st_mtime #time stamp of SlideShow.py
-        self.includedfolders = ['.']
-        self.excludedfolders = []
-        self.showfilenames = True
-        self.image_name = 'noimage'
-        self.after_id = None
-                        
-        #get max screen resolution on device
-        self.screen_width= self.winfo_screenwidth()
-        self.screen_height= self.winfo_screenheight()               
-        print("Screen width %d height %d "%(self.screen_width,self.screen_height))
-        #set tkinter widget to full screen
-        self.geometry("%dx%d+%d+%d" % (self.screen_width,self.screen_height,0,0)) 
-        self.configure(bg='black')
-        self.attributes('-fullscreen', True)
-        self.resizable(False, False)
-        # the images will be added to a Label widget
-        self.photo_widget= tkinter.Label(self,bg='black',borderwidth=0,padx=0, pady=0)
+        self.settings = { # settings, used to send to Popup dialog also
+            # these are from config file
+            'blend':False,
+            'blend_speed': 0.10,
+            'delay_time': 2,
+            'hide_the_screen': False,
+            'pause_the_photo': False,
+            'reload_filenames':True,
+            'scaleup': True,
+            'scaledown': True,
+            'screen_height': 600,
+            'screen_width': 800,
+            'show_filenames': True,
+            'sort':'none',
+            'time_begin': '0700',
+            'time_end': '2300',
+            # these are not from config file
+            'app':self,
+            'root':self.root,
+            'exit': False,
+            'save': False,
+            'clicked':'none'
+            }
+        self.settings['screen_width']= w
+        self.settings['screen_height']= h
+        self.configfile_timestamp = 0 # default config.txt time stamp
+        self.slideshowfile_timestamp = os.stat(__file__).st_mtime #time stamp of SlideShow.py
+        self.photo_filenames = False # holds all of the filenames of images
+        self.includedfolders = ['.'] #default
+        self.excludedfolders = [] # remove these folders and files
+        self.current_photo_name = 'none' # current name of current photo
+        self.photo = None
+        self.previous_photo = None
+        self.after_slideshow_id = None # for tkinter callback loop
+        self.after_blend_id = None # for tkinter callback loop
+        self.blend_in_progress = 'no'
+        self.alpha = 0.0
+        self.alpha_increment = 0.1
+        self.counter = 1
+        
+        # the photos will be added to a Label widget
+        self.photo_widget= tkinter.Label(self.root,bg='black',borderwidth=0,padx=0, pady=0)
         self.photo_widget.bind_all('<Any-KeyPress>',self.keypressed)
-        self.filename_widget = tkinter.Label(self, font=('Arial', 18),fg='white',bg='black',padx=4,pady=4)
-        self.filename_widget.pack(side=tkinter.BOTTOM)
+        self.photo_widget.pack(side='top')
+        self.filename_widget = tkinter.Label(self.root, font=('Arial', 18),fg='black',bg='white',padx=4,pady=4,relief=tk.RAISED)
+        self.filename_widget.pack(side='bottom',fill=tk.X)
         self.photo_widget.pack()
-        self.bind("<Button-1>", self.toggle_screen_visibility)
-        self.bind("<Button-3>", self.advance_image_now)
-        #self.bind("<Button-1>", lambda x: print("LEFT CLICK"))
+        self.root.bind("<Button-1>", self.popup_settings)
+
+        self.popup_results = {}# holds results from settings popup
+        self.popup = None
+
+    def popup_settings(self,event):
+        if self.popup == None:
+            self.root.after_cancel(self.after_slideshow_id) # stop slide show
+            self.popup = PopupSettings(self.settings,event.x,event.y)
+            self.root.wait_window(self.popup.top)
+            self.popup = None
+            if self.settings['hide_the_screen']:
+                self.onHide()
+            elif self.settings['pause_the_photo']:
+                self.onPause()
+            elif self.settings['clicked'] == 'exit':
+                self.onExit()
+            elif self.settings['clicked'] == 'save':
+                self.onSave()
+            elif self.settings['clicked'] == 'return':
+                self.onReturn()
+            else: self.slideshow_loop()
+
+    def onHide(self):
+        # Just restart as main loop will ignore displaying when hide_the_screen is true
+        # program still runs, just won't display
+        self.slideshow_loop()
+        
+    def onReturn(self):
+        # Just restart 
+        self.slideshow_loop()
+
+    def onPause(self):
+        # will keep current picture on the screen until a resume
+        if self.settings['pause_the_photo']: # on, so freeze pic
+            pass
+        else: 
+            self.slideshow_loop() # resume was clicked, restart slide show
+
+    def onExit(self):
+        self.root.destroy() # destroy windows, done
+        
+    def onSave(self):
+        # nothing to do as settings were updated in Popup and will take
+        # effect elsewhere
+        self.slideshow_loop()
 
     def keypressed(self,event):
-        print('key pressed: ',event)
-        if event.keycode == 27 or event.char == 'q': # ESC or q to quit
-            self.after_cancel(self.after_id)
-            self.destroy()
-        elif event.keysym =='space': # toggle pause screen
-            if self.hide_screen: # turn screen back on
-                self.doit()
-            else: self.after_cancel(self.after_id) #pause
-            self.hide_screen = not self.hide_screen
+        self.root.after_cancel(self.after_slideshow_id) # stop slide show
+        if event.keycode == 27 or event.char == 'q': # ESC or q to exit/quit
+            self.onExit()
+        elif event.keysym =='p': # toggle pause screen
+            self.settings['pause_the_photo'] = not self.settings['pause_the_photo']
+            self.onPause()
+        elif event.keysym.lower() =='s': # show settings
+            self.popup_settings(event)
+        elif event.keysym =='h': # hide screen
+            self.settings['hide_the_screen'] = not self.settings['hide_the_screen']
+            self.onHide()
+        else: self.slideshow_loop() # restart
          
-    def advance_image_now (self,event): # screen was clicked by right button
-        print("Button right: ",event)
-        self.after_cancel(self.after_id)
-        print("Button right: ",event)
-        self.doit()
-
-    def toggle_screen_visibility(self,event): # screen was clicked by left button
-        self.after_cancel(self.after_id)
-        self.hide_screen = not self.hide_screen
-        print("Button left: ",event, ", screen blank: "+str(self.hide_screen))
-        self.doit()
-
-
 
     def get_next_image(self):
     #------------------------------------------------------
         # get the next image 
         try:
-            self.image_name =  next(self.image_filenames)
-            current_image = Image.open(self.image_name) # load name as PIL Image
+            self.current_photo_name =  next(self.photo_filenames)
+            screenw = self.settings['screen_width']
+            screenh = self.settings['screen_height']
+
+            current_image = Image.open(self.current_photo_name) # load name as PIL Image
             current_image_width, current_image_height = current_image.size
-            print("Next image %s, width(%d) height(%d)"%(self.image_name,current_image_width,current_image_height))
+
             # use this if you want to scale up an down
             ratio_image = current_image_width / current_image_height
-            ratio_screen = self.screen_width / self.screen_height
+            ratio_screen = screenw / screenh  
             #determine how best to scale image to screen.  
             if ratio_screen > ratio_image:
-                    scaled_width = int( current_image_width * self.screen_height/current_image_height)
-                    scaled_height = self.screen_height
+                    scaled_width = int( current_image_width * screenh /current_image_height)
+                    scaled_height = screenh
             else:
-                    scaled_width = self.screen_width
-                    scaled_height = int(current_image_height * self.screen_width/ current_image_width)
-            if self.scaleup or self.scaledown: # only scale if config.txt indicates to do so
-                scaled_image = current_image.resize((scaled_width,scaled_height))
+                    scaled_width = screenw
+                    scaled_height = int(current_image_height * screenw / current_image_width)
+            if self.settings['scaleup'] or self.settings['scaledown']: # only scale if config.txt indicates to do so
+                self.scaled_image = current_image.resize((scaled_width,scaled_height))
             else:
-                scaled_image = current_image
-            print("Scale by: width(%d) height(%d)" % (scaled_width,scaled_height))
+                self.scaled_image = current_image
+            (neww,newh) = self.scaled_image.size
+            # create a black full screen image so that if we have an image smaller, we will paste it
+            # into the black image. This will allow us to ensure all images are the same size when
+            # showing and allow us to blend images if specificed in config.ASN1_CTXt
+            self.black_image  = Image.new( mode = "RGBA", size = (self.settings['screen_width'],self.settings['screen_height']), color = (0,0,0) )
+            if self.settings['blend']:
+                offsetw = int(screenw/2 - neww/2)
+                offseth = int(screenh/2 - newh/2)
+                self.black_image.paste(self.scaled_image,(offsetw,offseth))
+                self.scaled_image = self.black_image
             # convert PIL image to tkinter image
-            self.image = ImageTk.PhotoImage(scaled_image)
-            print("Final image: width(%s) height(%d)" % (self.image.width(), self.image.height()))
+            self.previous_photo = self.photo
+            self.photo = self.scaled_image
         except:
-            print("*** Error with %s, skipping."%self.image_name)
+            print("*** Error with %s, skipping."%self.current_photo_name)
             pass
 
-    def read_image_filenames(self):
+    def read_photo_filenames(self):
     #------------------------------------------------------
     # We have a list of included folders (and their subfolders) to include plus
     # a list of folders/subfolders to remove
         try:
             # either perform the 1st load or a new load (config.txt) of filenames
-            if self.image_filenames == False:
+            if self.photo_filenames == False:
                 included_filenames = self.read_folders(self.includedfolders)
-                print("Included folders images found: ",len(included_filenames))
-
                 excluded_filenames = self.read_folders(self.excludedfolders)
-                print("Excluded folders images found: ",len(excluded_filenames))
                 filenames = [f for f in included_filenames if f not in excluded_filenames]
-                print("Total images remaining: ",len(filenames))
-                if self.shuffle: # determine if we want to shuffle and create iterator of image filenames #print(images)
+                if self.sortfilenames == 'ascending': # determine order of filenames
+                    filenames.sort()
+                elif self.sortfilenames == 'descending':
+                    filenames.sort(reverse=True)
+                elif self.sortfilenames == 'random':
                     random.shuffle(filenames)
-                self.image_filenames = cycle(filenames)
+                self.photo_filenames = cycle(filenames)
         except:
                 print("*** Error reading image filenanmes")
 
@@ -184,13 +261,11 @@ log:
         try:
             exts = ("jpg", "bmp", "png", "gif", "jpeg")
             filenames = []
-            # finds pics in all config.txt included folders and their sub-folders 
-            for current_folder in folders:
+            for current_folder in folders: # finds pics in a included folders and their sub-folders 
                 for root, _, files in os.walk(current_folder):
                     for f in files:
                         if f.endswith(exts) and f not in filenames:
-                            # only add if not already added
-                            filenames.append(os.path.normpath(os.path.join(root, f)))
+                            filenames.append(os.path.normpath(os.path.join(root, f))) # only add if not already added
             return filenames
         except:
                 print("*** Error reading folders")
@@ -198,51 +273,46 @@ log:
         
     def check_schedule(self):
     #------ This runs only between begin and end ousrs
-        current = int(datetime.datetime.now().strftime('%H%M'))
-        if current >= self.timeon and current <= self.timeoff and not self.hide_screen:
-            print("Schedule %d - %d now %r " % (self.timeon,self.timeoff, True))
+        current_time = datetime.datetime.now().strftime('%H:%M:%S')
+        hidden = self.settings['hide_the_screen']
+        if current_time >= self.settings['time_begin'] and current_time <= self.settings['time_end'] and not hidden: 
             return True
         else:
-            print("Schedule %d - %d now %r " % (self.timeon,self.timeoff, False))
             return False
 
-    def check_for_program_changes(self):
+    def check_for_program_timestamp_changes(self):
     #------------------------------------------------------
         try:
-            # see if config.txt is there and if so, has it been updated
-            #config_file = os.path.join(self.path,'config.txt')
             config_file = self.path
+            # see if config.txt is there and if so, has it been updated?
             if os.path.exists(config_file) and os.path.isfile(config_file):
-                print("Found: ",os.path.abspath(config_file))
                 current_config_file_time =os.stat(config_file).st_mtime
-                if self.config_time < current_config_file_time:
-                    self.config_time = current_config_file_time
-                    # found config.txt that has been changed
-                    print("(%s) timestamp: %f" %(config_file,self.config_time))
-                    # get values from config file
+                if self.configfile_timestamp < current_config_file_time:
+                    self.configfile_timestamp = current_config_file_time
+                    # found config.txt that has been changed, get new values
                     config = configparser.RawConfigParser()
                     config.read(config_file)
                     d = dict(config.items('slideshow'))
                     try:
-                        self.delay_time = int(d.get('delay','15'))*1000 # to get real seconds
-                        self.shuffle = d['shuffle'].lower() == 'true'
-                        self.reload_filenames = d['reload'].lower() == 'true'
-                        self.timeon = int(d.get('timeon','0700'))
-                        self.timeoff = int(d.get('timeoff','2100'))
-                        self.scaleup = d['scaleup'].lower() == 'true'
-                        self.scaledown = d['scaledown'].lower() == 'True'
+                        self.settings['delay_time'] = int(d.get('delay','3')) # delay must be ms. so when used multiply by 1000
+                        self.settings['reload_filenames'] = d['reload'].lower() == 'true'
+                        self.settings['time_begin'] = d.get('time_begin','0700')
+                        self.settings['time_end'] = d.get('time_end','2200')
+                        self.settings['scaleup'] = d['scaleup'].lower() == 'true'
+                        self.settings['scaledown'] = d['scaledown'].lower() == 'true'
+                        self.settings['blend'] = d['blend'].lower() == 'true'
+                        self.settings['blend_speed'] = float(d.get('blend_speed',0.10))
                         self.includedfolders = d.get('includedfolders','').replace('\n','').split()
                         self.excludedfolders = d.get('excludedfolders','').replace('\n','').split()
                         self.showfilenames = d['showfilenames'].lower() == 'true'
+                        self.sortfilenames = d.get('sort','none').lower()
                     except:
                         pass
-                    if self.reload_filenames == True:
+                    if self.settings['reload_filenames'] == True:
                         # config said to reload files names, otherwise keep going with current files
-                        self.image_filenames = False # going to reload filenames
-                        self.reload_filenames = False
+                        self.photo_filenames = False # going to reload filenames
 
-                    print("Config read: delay(%d), shuffle(%r), timeon(%d), timeoff(%d), scaleup(%r), scaledown(%r), showfilenames(%r), reload filenames(%r)"  
-                      %(self.delay_time,self.shuffle,self.timeon,self.timeoff,self.scaleup, self.scaledown,self.showfilenames,self.reload_filenames)) 
+                    print("config.txt read:\n",self.settings)  
         except:
                 print("*** Error in config.txt")
                 pass
@@ -250,60 +320,109 @@ log:
             # see if SlideShow.py is there and if so, has it been updated
             program_file = os.path.join(self.path,__file__)
             if os.path.exists(program_file):
-                print("Found: ",__file__)
                 current_program_file_time=os.path.getmtime(program_file)
 
-                if self.program_time < current_program_file_time: 
+                if self.slideshowfile_timestamp < current_program_file_time: 
                     # found SlideShow.py  has been changed, restart it
                     print("\nRestarting ...\n------------")
-                    self.program_time = current_program_file_time
+                    self.slideshowfile_timestamp = current_program_file_time
                     os.execv(sys.executable,[__file__]+ sys.argv)
         except:
                 print("*** Error restarting SlideShow.py")
                 pass
 
 
-    def doit(self):
-    #------------------------------------------------------
-        print("Start doit callback")
-        self.check_for_program_changes()     # see if config.txt has changed
-        self.read_image_filenames()    # determine if we have to read/re-read image filenames
-        # check schedule to see if we show image or black screen only
-        if not self.check_schedule():
+    def slideshow_loop(self):
+    #---Run the slideshow. Basics steps: make sure the schedule is on and the screen is no hidden.
+    #-- Then get the next image, display it along with its name.  Then recall this function
+    #-- using 'after.'  This creates a multithreaded program in tkinter.
+    #-- But wait, if we are blending two images, we will call blendLoop, which itself runs with an
+    #--- after statement.  So this loop will still run, but will not do anything until blend is
+    #--- finished. Blend can be running 'yes', not running 'no', or just finished.
+    # When just finished, we need to make sure we delay again.
+        self.check_for_program_timestamp_changes()     # see if config.txt has changed
+        self.read_photo_filenames()    # determine if we have to read/re-read image filenames
+
+        if self.blend_in_progress == 'yes': # don't do anything until finished
+            time.sleep(1)
+            self.after_slideshow_id = self.root.after(int(self.settings['delay_time']*1000), self.slideshow_loop) #recall main after a pause
+            return
+        elif self.blend_in_progress == 'finished':
+            self.blend_in_progress = 'no'
+            self.after_slideshow_id = self.root.after(int(self.settings['delay_time']*1000), self.slideshow_loop) #recall main after a pause
+            return
+
+        if not self.check_schedule() or self.settings['hide_the_screen']: # check schedule to see if we show image or black screen only
             # show blank image on slide widget
             self.photo_widget.config(image='')
             self.photo_widget.place(relx=0.5, rely=0.5, anchor=tkinter.CENTER)
             self.filename_widget.config(text='')
-            self.title('')
+            time.sleep(1) # might as well sleep and not burn CPU
         else:
             self.get_next_image() # load up next image for display
-            try: # okay, lets make sure self.image is valid, otherwise skip
-                # show current image and/or file name 
-                self.photo_widget.config(image=self.image)
-                self.photo_widget.place(relx=0.5, rely=0.5, anchor=tkinter.CENTER)
-                if self.showfilenames: 
-                    self.filename_widget.pack() 
-                    self.filename_widget.configure(text=self.image_name)
-                else: 
-                    self.filename_widget.pack_forget() # BUG here. won't turn back on
+            print(self.current_photo_name)
+            try: 
+                if self.previous_photo != None and self.settings['blend']: # show current image and/or file name 
+                    self.blend_in_progress = 'yes' # do a blended transition
+                    self.root.after_cancel(self.after_slideshow_id)
+                    if self.settings['show_filenames']: 
+                        self.filename_widget.pack(side='bottom',fill=tk.X)
+                        self.filename_widget.configure(text=self.current_photo_name)
+                    else: 
+                        self.filename_widget.pack_forget() 
+                    self.blendLoop()
+                    return
+                else:
+                    # just display a single image
+                    self.tmpimg=ImageTk.PhotoImage(self.photo)
+                    self.photo_widget.config(image=self.tmpimg)
+                    self.photo_widget.place(relx=0.5, rely=0.5, anchor=tkinter.CENTER)
+                    if self.settings['show_filenames']: 
+                        self.filename_widget.pack(side='bottom') 
+                        self.filename_widget.configure(text=self.current_photo_name)
+                    else: 
+                        self.filename_widget.pack_forget() # BUG here. won't turn back on
             except:
-                print("*** Error adding loaded photo.")
+                print("*** Error adding ",self.current_photo_name)
                 pass
-        self.after_id = self.after(self.delay_time, self.doit) #recall main after a pause
+        self.after_slideshow_id = self.root.after(int(self.settings['delay_time']*1000), self.slideshow_loop) #recall main after a pause
+
+    def blendLoop(self):
+    #---------- Do alpha blend on two images, when finished, restart slideshowLoop ----------
+        if self.previous_photo == None: 
+            self.blend_in_progress = 'finished'
+            self.slideshow_loop()
+            return
+        if 1.0 <= self.alpha:
+            # for some reason, python is giving 1.0000000002 so we need
+            # to end with an alpha 1.0 which displays self.photo
+            self.blended= Image.blend(self.previous_photo,self.photo,1.0)
+            self.alpha = 0.0
+            self.display_photo = ImageTk.PhotoImage(self.blended)
+            self.photo_widget.config(image=self.display_photo)
+            self.photo_widget.place(relx=0.5, rely=0.5, anchor=tkinter.CENTER)
+            self.blend_in_progress = 'finished'
+            self.slideshow_loop()
+            return
+        self.blended= Image.blend(self.previous_photo,self.photo,self.alpha)
+        self.display_photo = ImageTk.PhotoImage(self.blended)
+        self.alpha = self.alpha + self.settings['blend_speed']
+        self.photo_widget.config(image=self.display_photo)
+        self.photo_widget.place(relx=0.5, rely=0.5, anchor=tkinter.CENTER)
+        self.after_blend_id = self.root.after(3, self.blendLoop)
     
 
     def start(self):
     #------------------------------------------------------
-        # call this only once
-        self.doit() # my code
-        self.mainloop() # tkinter framework
+        self.slideshow_loop() # my code
+        self.root.mainloop() # tkinter framework
 
 
 #------------------------------------------------------
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) != 2:
-        print ('Usage: python ScreenSaver.py  /somepath/config.txt')
-    path = sys.argv[1]
-    slideshow = Slideshow(path, DELAY_TIME, SHUFFLE)
+    path = 'config.txt'
+    if len(sys.argv) == 2:
+        path = sys.argv[1]
+    slideshow = Slideshow(path)
     slideshow.start()
