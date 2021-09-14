@@ -31,7 +31,6 @@ blend_speed=0.10
 
 # included photos from these folders and their subfolders
 includedfolders=  /mmedia/pics
-#includedfolders=  /mmedia/pics/2005 /mmedia/pics/2006 /mmmedia/pics/2007
 
 # excluded photos from these folders and their subfolders
-excludedfolders=/mmedia/pics/1996 /mmedia/pics/2001/2001-september11 /mmedia/pics/2021/2021-05tommyVaughan /mmedia/pics/2017/2017-07kathy /mmedia/pics/1998
+excludedfolders=/mmedia/pics/1996 
