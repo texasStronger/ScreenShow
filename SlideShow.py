@@ -23,48 +23,41 @@ class Slideshow():
     [slideshow]
     #delay seconds from 1 to ...
     delay=30
-    
     # reload this config file when it is changed: true or false
     reload=true
-    
     # scale smaller photos up to screen: true or false
     scaleup=True
-    
     # scale larger photos down to screen size: true or false
     scaledown=True: true or false
-    
     # begin slide show at: format HH:MM
     time_begin=06:30
-    
     # end slide show at: format HH:MM
     time_end=21:59
-    
     # show filenames on the screen: true or false
     showfilenames=true
-    
     # sort photos by full path name : none, ascending, descending or random
     sort=random
-    
     # transition photos with a blend: true or false
     blend=true
-    
     # blend speed: 0.0 to 1.0
     blend_speed=0.10
-
     # included photos from these folders and their subfolders
-    includedfolders=  /mmedia/pics
-    
+    includedfolders=  ./mmedia/pics
     # excluded photos from these folders and their subfolders
-    excludedfolders=/mmedia/pics/1996 /mmedia/pics/1998
+    excludedfolders= ./mmedia/pics/1996  ./mmedia/pics/1998
     
-    Click on the screen (or mouse) to show a settings popup. Some of the config settings can
-    be changed, but only while running.
-    If config.txt or slideshow.py are changed, the program will reload and restart, respectively.
+    Keys / mouse:
+    Left click or 's' key: show the settings popup for changes to currently running SlideShow
+    Right click or 'space bar' key: advance to next photo
+    'p' key: pause the current photo
+    'h' key: hide the screen
+    'esc', 'q' keys: ends the program
     
-    Use the keyboard: ESC or q ends the program.  p pauses the photo. s shows the setting popup.  h hides
-    the screen.
+    If config.txt or SlideShow.py are changed in the file system, the program will reload 
+    and restart, respectively.
     
     Files needed: SlideShow.py PopupSettings.py config.txt
+    Tested on windows 10 and raspberry pi buster, Python 3.9 with tkinter and Pillow
     
 log:
     '''
@@ -111,7 +104,8 @@ log:
         self.settings['screen_height']= h
         self.configfile_timestamp = 0 # default config.txt time stamp
         self.slideshowfile_timestamp = os.stat(__file__).st_mtime #time stamp of SlideShow.py
-        self.photo_filenames = False # holds all of the filenames of images
+        self.photo_filenames = False # holds all of the filenames of images as a cycle
+        self.number_of_photos_found = 0
         self.includedfolders = ['.'] #default
         self.excludedfolders = [] # remove these folders and files
         self.current_photo_name = 'none' # current name of current photo
@@ -132,19 +126,26 @@ log:
         self.filename_widget.pack(side='bottom',fill=tk.X)
         self.photo_widget.pack()
         self.root.bind("<Button-1>", self.popup_settings)
+        self.root.bind("<Button-3>", self.popup_settings)
 
         self.popup_results = {}# holds results from settings popup
         self.popup = None
 
     def popup_settings(self,event):
+        if event.num == 3: # right button
+            self.onNext()
+            return
+        #otherwise left button, show settings popup
         if self.popup == None:
-            self.root.after_cancel(self.after_slideshow_id) # stop slide show
+            #self.root.after_cancel(self.after_slideshow_id) # stop slide show
             self.popup = PopupSettings(self.settings,event.x,event.y)
             self.root.wait_window(self.popup.top)
             self.popup = None
+            '''
             if self.settings['hide_the_screen']:
                 self.onHide()
-            elif self.settings['pause_the_photo']:
+            '''
+            if self.settings['pause_the_photo']:
                 self.onPause()
             elif self.settings['clicked'] == 'exit':
                 self.onExit()
@@ -152,35 +153,13 @@ log:
                 self.onSave()
             elif self.settings['clicked'] == 'return':
                 self.onReturn()
-            else: self.slideshow_loop()
+            #else: self.slideshow_loop()
 
-    def onHide(self):
-        # Just restart as main loop will ignore displaying when hide_the_screen is true
-        # program still runs, just won't display
-        self.slideshow_loop()
-        
-    def onReturn(self):
-        # Just restart 
-        self.slideshow_loop()
-
-    def onPause(self):
-        # will keep current picture on the screen until a resume
-        if self.settings['pause_the_photo']: # on, so freeze pic
-            pass
-        else: 
-            self.slideshow_loop() # resume was clicked, restart slide show
-
-    def onExit(self):
-        self.root.destroy() # destroy windows, done
-        
-    def onSave(self):
-        # nothing to do as settings were updated in Popup and will take
-        # effect elsewhere
-        self.slideshow_loop()
 
     def keypressed(self,event):
-        self.root.after_cancel(self.after_slideshow_id) # stop slide show
-        if event.keycode == 27 or event.char == 'q': # ESC or q to exit/quit
+        #self.root.after_cancel(self.after_slideshow_id) # stop slide show
+        
+        if event.keycode == 27 or event.char == 'q' or event.char == '\x1b': # ESC or q to exit/quit
             self.onExit()
         elif event.keysym =='p': # toggle pause screen
             self.settings['pause_the_photo'] = not self.settings['pause_the_photo']
@@ -190,7 +169,39 @@ log:
         elif event.keysym =='h': # hide screen
             self.settings['hide_the_screen'] = not self.settings['hide_the_screen']
             self.onHide()
-        else: self.slideshow_loop() # restart
+        elif event.keysym =='space': 
+            self.onNext()
+        #else: self.slideshow_loop() # restart
+
+    def onSave(self):
+        # stop slideshow and restart in case new files have to be loaded
+        self.root.after_cancel(self.after_slideshow_id) # stop slide show
+        self.slideshow_loop()
+        pass
+    def onHide(self):
+        # settings is True or False and mail slideshow loop will pick it up
+        # program still runs, just won't display
+        pass
+        
+    def onReturn(self):
+        # Popup just returned, nothing to do
+        pass
+
+    def onPause(self):
+        # will keep current picture on the screen until a resume based on settings variable T/F
+        if self.settings['pause_the_photo']: # on, so freeze pic
+            self.root.after_cancel(self.after_slideshow_id) # stop slide show
+            pass
+        else: 
+            self.slideshow_loop() # resume slide show
+
+    def onExit(self):
+        self.root.destroy() # destroy windows, done
+        
+    def onNext(self):
+        self.root.after_cancel(self.after_slideshow_id) # stop slide show
+        self.slideshow_loop() # restart immediately
+        
          
 
     def get_next_image(self):
@@ -251,9 +262,13 @@ log:
                     filenames.sort(reverse=True)
                 elif self.sortfilenames == 'random':
                     random.shuffle(filenames)
+                self.number_of_photos_found = len(filenames)
                 self.photo_filenames = cycle(filenames)
         except:
-                print("*** Error reading image filenanmes")
+                raise ("*** Error reading photo folders.")
+
+        if self.number_of_photos_found == 0:
+            raise("*** No photos specified.")
 
     def read_folders(self,folders):
     #------------------------------------------------------
@@ -341,7 +356,15 @@ log:
     #--- finished. Blend can be running 'yes', not running 'no', or just finished.
     # When just finished, we need to make sure we delay again.
         self.check_for_program_timestamp_changes()     # see if config.txt has changed
-        self.read_photo_filenames()    # determine if we have to read/re-read image filenames
+        try:
+            self.read_photo_filenames()    # determine if we have to read/re-read image filenames
+        except:
+            self.onExit() # no photos
+            return
+        
+        if self.photo_filenames == []:
+            print("No photos included.")
+            return
 
         if self.blend_in_progress == 'yes': # don't do anything until finished
             time.sleep(1)
@@ -360,7 +383,7 @@ log:
             time.sleep(1) # might as well sleep and not burn CPU
         else:
             self.get_next_image() # load up next image for display
-            print(self.current_photo_name)
+            print('file: ',self.current_photo_name)
             try: 
                 if self.previous_photo != None and self.settings['blend']: # show current image and/or file name 
                     self.blend_in_progress = 'yes' # do a blended transition
