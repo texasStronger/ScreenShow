@@ -64,7 +64,7 @@ class PopupSettings():
         fr = tk.Frame(self.top,padx=20,pady=5)
         fr.grid(row=8,column=0,sticky=tk.W,columnspan=3)
         tk.Label( fr, text="Blend speed:", font=f).pack(side=tk.LEFT)
-        tk.Spinbox( fr, from_=0.01, to=1.00, increment=0.01,  font=f,textvariable=self.blend_speed_var, width=5,justify=tk.RIGHT ).pack(side=tk.LEFT)
+        tk.Spinbox( fr, from_=0.10, to=1.00, increment=0.10,  font=f,textvariable=self.blend_speed_var, width=5,justify=tk.RIGHT ).pack(side=tk.LEFT)
 
         # show sort options
         fr = tk.Frame(self.top,padx=20,pady=5)
@@ -138,7 +138,7 @@ class App():
             'app':self,
             'background': "black",
             'blend': True,
-            'blend_speed': 0.02,
+            'blend_speed': 0.10,
             'clicked':'none',
             'delay_time': 3,
             'exit': False,
