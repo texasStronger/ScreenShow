@@ -21,7 +21,7 @@ time_end=21:59
 showfilenames=true
 
 # sort photos by full path name : none, ascending, descending or random
-sort=random
+sort=descending
 
 # transition photos with a blend: true or false
 blend=true
@@ -33,4 +33,4 @@ blend_speed=0.10
 includedfolders=  ./mmedia/pics
 
 # excluded photos from these folders and their subfolders
-excludedfolders= ./mmedia/pics/1996 
+excludedfolders=
