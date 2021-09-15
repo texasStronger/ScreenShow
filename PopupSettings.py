@@ -9,7 +9,7 @@ class PopupSettings():
     def __init__(self,settings,x,y):
         self.top = tk.Toplevel(settings['root'])
         self.app= settings['app']
-        self.top.grab_set()
+        #self.top.grab_set()
         self.settings = settings
         self.top.title('Slideshow Settings')
         f = ('Times', 20)
