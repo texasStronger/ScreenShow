@@ -40,10 +40,10 @@ Usage: python config.txt
     blend_speed=0.10
 
     # included photos from these folders and their subfolders
-    includedfolders=  /mmedia/pics
+    includedfolders=  ./mmedia/pics
     
     # excluded photos from these folders and their subfolders
-    excludedfolders=/mmedia/pics/1996 /mmedia/pics/1998
+    excludedfolders= ./mmedia/pics/1996 /mmedia/pics/1998
     
     Click on the screen (or mouse) to show a settings popup. Some of the config settings can
     be changed, but only while running.
