@@ -47,3 +47,5 @@ Usage: python config.txt
     Files needed: SlideShow.py PopupSettings.py config.txt
     Tested on windows 10 and raspberry pi buster, Python 3.9 with tkinter and Pillow
     
+    Author P Bahrs
+    
