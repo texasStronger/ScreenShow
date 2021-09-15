@@ -30,7 +30,7 @@ blend=true
 blend_speed=0.10
 
 # included photos from these folders and their subfolders
-includedfolders=  /mmedia/pics
+includedfolders=  ./mmedia/pics
 
 # excluded photos from these folders and their subfolders
-excludedfolders=/mmedia/pics/1996 
+excludedfolders= ./mmedia/pics/1996 
