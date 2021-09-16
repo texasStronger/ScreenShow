@@ -137,7 +137,6 @@ log:
             return
         #otherwise left button, show settings popup
         if self.popup == None:
-            #self.root.after_cancel(self.after_slideshow_id) # stop slide show
             self.popup = PopupSettings(self.settings,event.x,event.y)
             self.root.wait_window(self.popup.top)
             self.popup = None
@@ -153,11 +152,9 @@ log:
                 self.onSave()
             elif self.settings['clicked'] == 'return':
                 self.onReturn()
-            #else: self.slideshow_loop()
 
 
     def keypressed(self,event):
-        #self.root.after_cancel(self.after_slideshow_id) # stop slide show
         
         if event.keycode == 27 or event.char == 'q' or event.char == '\x1b': # ESC or q to exit/quit
             self.onExit()
@@ -171,7 +168,6 @@ log:
             self.onHide()
         elif event.keysym =='space': 
             self.onNext()
-        #else: self.slideshow_loop() # restart
 
     def onSave(self):
         # stop slideshow and restart in case new files have to be loaded
@@ -181,6 +177,8 @@ log:
     def onHide(self):
         # settings is True or False and mail slideshow loop will pick it up
         # program still runs, just won't display
+        self.root.after_cancel(self.after_slideshow_id) # stop slide show
+        self.slideshow_loop()
         pass
         
     def onReturn(self):
