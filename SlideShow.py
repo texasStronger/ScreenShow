@@ -59,6 +59,8 @@ class Slideshow():
     Files needed: SlideShow.py PopupSettings.py config.txt
     Tested on windows 10 and raspberry pi buster, Python 3.9 with tkinter and Pillow
     
+    by peter bahrs 15-Sep-2021
+    
 log:
     '''
     print(__doc__)
@@ -104,10 +106,11 @@ log:
         self.settings['screen_height']= h
         self.configfile_timestamp = 0 # default config.txt time stamp
         self.slideshowfile_timestamp = os.stat(__file__).st_mtime #time stamp of SlideShow.py
-        self.photo_filenames = False # holds all of the filenames of images as a cycle
+        self.photo_filenames = [] # holds all of the filenames of images as a cycle
         self.number_of_photos_found = 0
         self.includedfolders = ['.'] #default
         self.excludedfolders = [] # remove these folders and files
+        self.sort_direction = 'none'
         self.current_photo_name = 'none' # current name of current photo
         self.photo = None
         self.previous_photo = None
@@ -140,10 +143,6 @@ log:
             self.popup = PopupSettings(self.settings,event.x,event.y)
             self.root.wait_window(self.popup.top)
             self.popup = None
-            '''
-            if self.settings['hide_the_screen']:
-                self.onHide()
-            '''
             if self.settings['pause_the_photo']:
                 self.onPause()
             elif self.settings['clicked'] == 'exit':
@@ -165,13 +164,16 @@ log:
             self.popup_settings(event)
         elif event.keysym =='h': # hide screen
             self.settings['hide_the_screen'] = not self.settings['hide_the_screen']
-            self.onHide()
+            #self.onHide()
         elif event.keysym =='space': 
             self.onNext()
 
     def onSave(self):
         # stop slideshow and restart in case new files have to be loaded
         self.root.after_cancel(self.after_slideshow_id) # stop slide show
+        if self.settings['sort'] != self.sort_direction:
+            self.sort_direction = self.settings['sort']
+            self.photo_filenames = []
         self.slideshow_loop()
         pass
     def onHide(self):
@@ -250,15 +252,15 @@ log:
     # a list of folders/subfolders to remove
         try:
             # either perform the 1st load or a new load (config.txt) of filenames
-            if self.photo_filenames == False:
+            if self.photo_filenames == []:
                 included_filenames = self.read_folders(self.includedfolders)
                 excluded_filenames = self.read_folders(self.excludedfolders)
                 filenames = [f for f in included_filenames if f not in excluded_filenames]
-                if self.sortfilenames == 'ascending': # determine order of filenames
+                if self.settings['sort']== 'ascending': # determine order of filenames
                     filenames.sort()
-                elif self.sortfilenames == 'descending':
+                elif self.settings['sort'] == 'descending':
                     filenames.sort(reverse=True)
-                elif self.sortfilenames == 'random':
+                elif self.settings['sort'] == 'random':
                     random.shuffle(filenames)
                 self.number_of_photos_found = len(filenames)
                 self.photo_filenames = cycle(filenames)
@@ -318,12 +320,12 @@ log:
                         self.includedfolders = d.get('includedfolders','').replace('\n','').split()
                         self.excludedfolders = d.get('excludedfolders','').replace('\n','').split()
                         self.showfilenames = d['showfilenames'].lower() == 'true'
-                        self.sortfilenames = d.get('sort','none').lower()
+                        self.settings['sort'] = d.get('sort','none').lower()
                     except:
                         pass
                     if self.settings['reload_filenames'] == True:
                         # config said to reload files names, otherwise keep going with current files
-                        self.photo_filenames = False # going to reload filenames
+                        self.photo_filenames = [] # going to reload filenames
 
                     print("config.txt read:\n",self.settings)  
         except:
@@ -353,10 +355,12 @@ log:
     #--- after statement.  So this loop will still run, but will not do anything until blend is
     #--- finished. Blend can be running 'yes', not running 'no', or just finished.
     # When just finished, we need to make sure we delay again.
+
         self.check_for_program_timestamp_changes()     # see if config.txt has changed
         try:
             self.read_photo_filenames()    # determine if we have to read/re-read image filenames
         except:
+            print("No photos included.")
             self.onExit() # no photos
             return
         
